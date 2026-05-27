@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Booking Calendar</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        padding: 40px;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    h1, h2 {
+        text-align: center;
+    }
+
+    .settings, .booking-section {
+        margin-top: 30px;
+    }
+
+    label {
+        display: block;
+        margin-top: 15px;
+        font-weight: bold;
+    }
+
+    input, select, button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+    }
+
+    button {
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+
+    button:hover {
+        background: #0056b3;
+    }
+
+    .slots {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .slot {
+        padding: 12px;
+        background: #e9ecef;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .slot.booked {
+        background: #dc3545;
+        color: white;
+        cursor: not-allowed;
+    }
+
+    .slot.available {
+        background: #28a745;
+        color: white;
+    }
+
+    .message {
+        margin-top: 20px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Booking Calendar</h1>
+
+    <div class="settings">
+        <h2>Admin Settings</h2>
+
+        <label>Select Open Days</label>
+        <select id="openDays" multiple>
+            <option value="0">Sunday</option>
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+        </select>
+
+        <label>Available Time Slots (comma separated)</label>
+        <input type="text" id="timeSlots" placeholder="9:00 AM, 10:00 AM, 1:00 PM"/>
+
+        <button onclick="saveSettings()">Save Settings</button>
+    </div>
+
+    <div class="booking-section">
+        <h2>Book an Appointment</h2>
+
+        <label>Select Date</label>
+        <input type="date" id="bookingDate" onchange="loadSlots()"/>
+
+        <div class="slots" id="slotsContainer"></div>
+
+        <div class="message" id="message"></div>
+    </div>
+</div>
+
+<script>
+    let settings = JSON.parse(localStorage.getItem('calendarSettings')) || {
+        openDays: [1,2,3,4,5],
+        timeSlots: ["9:00 AM", "10:00 AM", "11:00 AM"]
+    };
+
+    let bookings = JSON.parse(localStorage.getItem('bookings')) || {};
+
+    function saveSettings() {
+        const selectedDays = Array.from(document.getElementById('openDays').selectedOptions)
+            .map(option => parseInt(option.value));
+
+        const timeSlots = document.getElementById('timeSlots').value
+            .split(',')
+            .map(slot => slot.trim())
+            .filter(slot => slot !== '');
+
+        settings = {
+            openDays: selectedDays,
+            timeSlots: timeSlots
+        };
+
+        localStorage.setItem('calendarSettings', JSON.stringify(settings));
+
+        alert("Settings saved!");
+    }
+
+    function loadSlots() {
+        const dateInput = document.getElementById('bookingDate').value;
+        const slotsContainer = document.getElementById('slotsContainer');
+        const message = document.getElementById('message');
+
+        slotsContainer.innerHTML = '';
+        message.innerHTML = '';
+
+        if (!dateInput) return;
+
+        const selectedDate = new Date(dateInput);
+        const day = selectedDate.getDay();
+
+        if (!settings.openDays.includes(day)) {
+            message.innerHTML = "Bookings are closed for this day.";
+            return;
+        }
+
+        const bookedSlots = bookings[dateInput] || [];
+
+        settings.timeSlots.forEach(slot => {
+            const div = document.createElement('div');
+            div.classList.add('slot');
+
+            if (bookedSlots.includes(slot)) {
+                div.classList.add('booked');
+                div.innerText = slot + " (Booked)";
+            } else {
+                div.classList.add('available');
+                div.innerText = slot;
+
+                div.onclick = () => bookSlot(dateInput, slot);
+            }
+
+            slotsContainer.appendChild(div);
+        });
+    }
+
+    function bookSlot(date, slot) {
+        if (!bookings[date]) {
+            bookings[date] = [];
+        }
+
+        bookings[date].push(slot);
+
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+
+        document.getElementById('message').innerHTML =
+            `Booked ${slot} on ${date}`;
+
+        loadSlots();
+    }
+
+    // Load default settings into form
+    window.onload = () => {
+        document.getElementById('timeSlots').value =
+            settings.timeSlots.join(', ');
+
+        const options = document.getElementById('openDays').options;
+
+        for (let option of options) {
+            if (settings.openDays.includes(parseInt(option.value))) {
+                option.selected = true;
+            }
+        }
+    };
+</script>
+
+</body>
+</html>
